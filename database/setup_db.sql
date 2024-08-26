@@ -8,6 +8,11 @@ CREATE TYPE "auction_style" AS ENUM (
   'increasing',
   'decreasing'
 );
+CREATE TYPE "auction_status" AS ENUM (
+  'running',
+  'finished'
+);
+
 
 -- Create tables
 CREATE TABLE "user" (
@@ -53,6 +58,7 @@ CREATE TABLE "auction" (
   "current_max_bid" decimal(10,2),
   "bid_closing_time" timestamptz,
   "bid_winner_id" bigint,
+  "status" auction_status,
   "created_at" timestamptz,
   "updated_at" timestamptz
 );

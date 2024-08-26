@@ -1,20 +1,16 @@
 import express from 'express';
 import dotenv from 'dotenv';
-import pg from 'pg';
-const { Pool } = pg;
+import bidRouter from './route/bid.route.js'
+import pool from './db/db.js';
+
 
 dotenv.config();
 
 const app = express();
 app.use(express.json());
 
-const pool = new Pool({
-    user: process.env.DB_USER,
-    host: process.env.DB_HOST,
-    database: process.env.DB_NAME,
-    password: process.env.DB_PASSWORD,
-    port: Number(process.env.DB_PORT),
-});
+
+app.use('/api/bid', bidRouter)
 
 // Create a new user
 app.post('/users', async (req, res) => {
@@ -54,6 +50,85 @@ app.get('/users', async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
+
+app.post('/auctions', async (req, res) => {
+    const {
+        user_id,
+        auction_style,
+        auction_category,
+        auction_type,
+        auction_description,
+        starting_bid,
+        increment_amount,
+        bid_starting_time,
+        current_max_bid,
+        bid_closing_time,
+        bid_winner_id,
+        status,
+        created_at,
+        updated_at
+    } = req.body;
+
+    try {
+        const result = await pool.query(
+            `INSERT INTO "auction" (
+                "user_id", "auction_style", "auction_category", "auction_type", 
+                "auction_description", "starting_bid", "increment_amount", 
+                "bid_starting_time", "current_max_bid", "bid_closing_time", 
+                "bid_winner_id", "status", "created_at", "updated_at"
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+            RETURNING *`,
+            [
+                user_id,
+                auction_style,
+                auction_category,
+                auction_type,
+                auction_description,
+                starting_bid,
+                increment_amount,
+                bid_starting_time,
+                current_max_bid,
+                bid_closing_time,
+                bid_winner_id,
+                status,
+                created_at,
+                updated_at
+            ]
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+app.get('/auctions/:id', async (req, res) => {
+    const auctionId = parseInt(req.params.id, 10);
+
+    if (isNaN(auctionId)) {
+        return res.status(400).send('Invalid Auction ID');
+    }
+
+    try {
+        const result = await pool.query('SELECT * FROM "auction" WHERE id = $1', [auctionId]);
+        if (result.rows.length === 0) {
+            return res.status(404).send('Auction Not Found');
+        }
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+app.use((err, req, res, next) => {
+    const statusCode = err.statusCode || 500;
+    const message = err.message || 'internal server error';
+    res.status(statusCode).json({
+        success: false,
+        statusCode,
+        message
+    })
+})
+
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
